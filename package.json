@@ -1,0 +1,17 @@
+{
+  "name": "mughalauth-discord-bot",
+  "version": "1.0.0",
+  "description": "Premium MughalAuth Admin Control Discord Bot using modern message components",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "discord.js": "^14.26.4",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  }
+}
