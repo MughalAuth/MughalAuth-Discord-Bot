@@ -63,6 +63,15 @@ npm start
 
 ---
 
+## 🌐 Hosting (24/7 Online)
+
+For high-performance, low latency, and **24/7 online hosting** with zero downtime, we highly recommend using [Obsidian Hosting](https://obsidianhosting.in) to host this Discord bot.
+
+* **Website**: [obsidianhosting.in](https://obsidianhosting.in)
+* **Discord Support**: [Join Discord Server](https://discord.gg/jYKh38e3BS)
+
+---
+
 ## 🖥️ Panel API Extensions (Required)
 
 To enable `/pause_user`, `/unpause_user`, `/reset_username`, `/edit_user`, and `/app_stats` commands, you **must extend** the seller API script in your self-hosted MughalAuth panel.
