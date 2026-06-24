@@ -27,6 +27,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Row 4 — Danger Zone: Unpause, Ban User, Unban User, Delete User
 - All new panel buttons (Edit User, Extend Expiry, Rename, Pause, Unpause, Unban User, Ban Key, Unban Key, Del Key) now supported with full modal handlers
 
+### 🆕 Added — Direct Message (DM) Forwarding
+
+- Optional `discord_user` parameter added to `/create_user`, `/quick_create`, and `/create_license` slash commands.
+- If selected, the bot automatically sends the generated user credentials or license keys to the client via direct message (DM) in a clean embed.
+- Shows status (success/failure) to the administrator in the command execution reply.
+
 ### 🆕 Added — Confirmation Dialogs
 
 Destructive actions now require confirmation before executing:
@@ -59,9 +65,14 @@ The following commands now show live username suggestions while you type:
 | Field | Validation Rule |
 |-------|----------------|
 | Username | 3–32 characters, no spaces |
-| Password | Minimum 6 characters |
+| Password | Minimum 1 character |
 | Expiry Days | 1 to 3650 (10 years max) |
 | License Amount | 1 to 10 per generation |
+
+### 🔄 Changed — Public Messages by Default
+
+- All slash command replies and modal submission outputs have been changed from ephemeral ("Only you can see this message") to **normal public messages**.
+- This allows multiple administrators or friends in a server to see all actions, updates, user creations, and license outputs in real-time.
 
 ### ✨ Improved — UI & Visual Upgrades
 

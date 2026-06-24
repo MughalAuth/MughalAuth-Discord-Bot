@@ -77,7 +77,7 @@ function validateUsername(username) {
 }
 
 function validatePassword(password) {
-  if (!password || password.length < 6) return '❌ Password must be at least **6 characters** long.';
+  if (!password || password.length < 1) return '❌ Password must be at least **1 character** long.';
   return null;
 }
 

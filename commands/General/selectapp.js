@@ -13,7 +13,7 @@ module.exports = {
 
     if (apps.length === 0) {
       const c = buildV2Error('❌ No Applications Configured', 'No applications found in your configuration!');
-      return interaction.reply({ components: [c], flags: COMPONENTS_V2, ephemeral: true });
+      return interaction.reply({ components: [c], flags: COMPONENTS_V2, ephemeral: false });
     }
 
     const currentApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
@@ -39,7 +39,7 @@ module.exports = {
     await interaction.reply({
       components: [container],
       flags: COMPONENTS_V2,
-      ephemeral: true
+      ephemeral: false
     });
   }
 };

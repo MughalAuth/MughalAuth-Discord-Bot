@@ -8,7 +8,7 @@ module.exports = {
     .setName('edit_user')
     .setDescription('Edit a user\'s password, subscription, or expiry')
     .addStringOption(opt => opt.setName('username').setDescription('Username to edit').setRequired(true).setAutocomplete(true))
-    .addStringOption(opt => opt.setName('new_password').setDescription('New password (min 6 chars)').setRequired(false))
+    .addStringOption(opt => opt.setName('new_password').setDescription('New password (min 1 char)').setRequired(false))
     .addStringOption(opt => opt.setName('new_subscription').setDescription('New subscription level').setRequired(false))
     .addStringOption(opt => opt.setName('new_email').setDescription('New email address').setRequired(false))
     .addIntegerOption(opt => opt.setName('new_expiry_days').setDescription('New expiry: days from now').setRequired(false).setMinValue(1).setMaxValue(3650)),
@@ -27,7 +27,7 @@ module.exports = {
   },
 
   async execute(interaction, client) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {

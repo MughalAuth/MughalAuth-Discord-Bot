@@ -67,7 +67,7 @@ module.exports = {
     await interaction.reply({
       components: [container],
       flags: COMPONENTS_V2,
-      ephemeral: true
+      ephemeral: false
     });
   }
 };

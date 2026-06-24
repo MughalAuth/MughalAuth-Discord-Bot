@@ -9,10 +9,11 @@ module.exports = {
     .setName('quick_create')
     .setDescription('Quickly create a user with auto-generated password')
     .addStringOption(opt => opt.setName('username').setDescription('Username (3–32 chars, no spaces)').setRequired(true))
-    .addIntegerOption(opt => opt.setName('expiry_days').setDescription('Expiry in days (default: 30)').setRequired(false).setMinValue(1).setMaxValue(3650)),
+    .addIntegerOption(opt => opt.setName('expiry_days').setDescription('Expiry in days (default: 30)').setRequired(false).setMinValue(1).setMaxValue(3650))
+    .addUserOption(opt => opt.setName('discord_user').setDescription('Discord user to send credentials in DM (optional)').setRequired(false)),
 
   async execute(interaction, client) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {
@@ -22,6 +23,7 @@ module.exports = {
     const sellerKey = config.APPLICATIONS[selectedApp];
     const username = interaction.options.getString('username').trim();
     const expiryDays = interaction.options.getInteger('expiry_days') || 30;
+    const discordUser = interaction.options.getUser('discord_user');
 
     const usernameErr = validateUsername(username);
     if (usernameErr) return interaction.editReply({ components: [buildV2Error('❌ Invalid Username', usernameErr, selectedApp)], flags: COMPONENTS_V2 });
@@ -31,12 +33,36 @@ module.exports = {
 
     const result = await mughalauth_request({ type: 'adduser', user: username, pass: password, email: '', sub: 'default', expiry }, sellerKey);
 
+    let dmStatus = '';
+    if (result.success && discordUser) {
+      try {
+        await discordUser.send({
+          embeds: [{
+            title: `⚡ Account Quick-Created — ${selectedApp}`,
+            description: `Your login credentials for **${selectedApp}** are ready.`,
+            color: 0x2ecc71,
+            fields: [
+              { name: '👤 Username', value: `\`${username}\``, inline: true },
+              { name: '🔑 Password', value: `\`${password}\``, inline: true },
+              { name: '📅 Expiry', value: `${expiryDays} days`, inline: true }
+            ],
+            footer: { text: `Assigned by ${interaction.user.tag}` },
+            timestamp: new Date().toISOString()
+          }]
+        });
+        dmStatus = `\n\n✅ **Credentials sent to <@${discordUser.id}> in DM.**`;
+      } catch (err) {
+        dmStatus = `\n\n⚠️ **Failed to DM <@${discordUser.id}> (DMs might be closed/blocked).**`;
+      }
+    }
+
     const desc = result.success
       ? `**${username}** created in **${selectedApp}** with an auto-generated password.\n\n` +
         `• **Username:** \`${username}\`\n` +
         `• **Password:** ||${password}||\n` +
         `• **Expiry:** \`${expiryDays} days\`\n\n` +
-        `*Password is randomly generated — share it securely.*`
+        `*Password is randomly generated — share it securely.*` +
+        dmStatus
       : `**Error:** ${result.message || 'Unknown error'}`;
 
     await interaction.editReply({

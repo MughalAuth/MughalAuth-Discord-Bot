@@ -9,7 +9,7 @@ module.exports = {
     .addStringOption(opt => opt.setName('license_key').setDescription('License key to delete').setRequired(true)),
 
   async execute(interaction, client) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {

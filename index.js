@@ -116,7 +116,7 @@ function buildCreateUserModal() {
   const m = new ModalBuilder().setCustomId('modal_create_user').setTitle('👤 Create New User');
   m.addComponents(
     new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('username').setLabel('Username (3-32 chars, no spaces)').setStyle(TextInputStyle.Short).setRequired(true)),
-    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('password').setLabel('Password (min 6 chars)').setStyle(TextInputStyle.Short).setRequired(true)),
+    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('password').setLabel('Password (min 1 char)').setStyle(TextInputStyle.Short).setRequired(true)),
     new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('email').setLabel('Email (optional)').setStyle(TextInputStyle.Short).setRequired(false)),
     new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('subscription').setLabel('Subscription level').setValue('default').setStyle(TextInputStyle.Short).setRequired(true)),
     new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('expiry_days').setLabel('Expiry (Days)').setValue('30').setStyle(TextInputStyle.Short).setRequired(true))
@@ -402,7 +402,7 @@ client.on('interactionCreate', async (interaction) => {
       persistence.setUserApp(interaction.user.id, selectedApp);
 
       const c = buildV2Success('✅ Application Selected', `**${selectedApp}** is now your active application.`, selectedApp);
-      await interaction.reply({ components: [c], flags: COMPONENTS_V2, ephemeral: true });
+       await interaction.reply({ components: [c], flags: COMPONENTS_V2, ephemeral: false });
 
       await client.sendWebhook(buildV2Info('📱 App Selected',
         `• **User:** ${interaction.user.displayName} (${interaction.user.id})\n• **Selected App:** \`${selectedApp}\``
@@ -431,7 +431,7 @@ client.on('interactionCreate', async (interaction) => {
 
     // 3c. Direct action buttons (need defer)
     if (interaction.customId === 'admin_btn_list_users') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ ephemeral: false });
       const result = await mughalauth_request({ type: 'fetchallusers' }, sellerKey);
       if (!result.success || !result.users) {
         return interaction.editReply({ components: [buildV2Error('❌ Failed to fetch users', result.message || 'Unknown error', selectedApp)], flags: COMPONENTS_V2 });
@@ -447,7 +447,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'admin_btn_list_licenses') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ ephemeral: false });
       const result = await mughalauth_request({ type: 'fetchalllicenses' }, sellerKey);
       if (!result.success) {
         return interaction.editReply({ components: [buildV2Error('❌ Failed to fetch licenses', result.message || 'Unknown error', selectedApp)], flags: COMPONENTS_V2 });
@@ -463,7 +463,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'admin_btn_app_stats') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ ephemeral: false });
       const result = await mughalauth_request({ type: 'appstats' }, sellerKey);
       if (!result.success) {
         return interaction.editReply({ components: [buildV2Error('❌ Failed to fetch stats', result.message || 'Unknown error', selectedApp)], flags: COMPONENTS_V2 });
@@ -505,7 +505,7 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.reply({ content: 'Access denied.', ephemeral: true });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: false });
 
     const selectedApp = getActiveApp(interaction.user.id);
     if (!selectedApp) {
@@ -540,7 +540,7 @@ client.on('interactionCreate', async (interaction) => {
       const subscription = interaction.fields.getTextInputValue('subscription').trim() || 'default';
       const expiryDays = parseInt(interaction.fields.getTextInputValue('expiry_days')) || 30;
       if (!username || username.length < 3) return interaction.editReply({ components: [buildV2Error('❌ Invalid Username', 'Username must be at least **3 characters**.', selectedApp)], flags: COMPONENTS_V2 });
-      if (!password || password.length < 6) return interaction.editReply({ components: [buildV2Error('❌ Invalid Password', 'Password must be at least **6 characters**.', selectedApp)], flags: COMPONENTS_V2 });
+      if (!password || password.length < 1) return interaction.editReply({ components: [buildV2Error('❌ Invalid Password', 'Password must be at least **1 character**.', selectedApp)], flags: COMPONENTS_V2 });
       const expiry = Math.floor(Date.now() / 1000) + (expiryDays * 86400);
       const result = await mughalauth_request({ type: 'adduser', user: username, pass: password, email, sub: subscription, expiry }, sellerKey);
       const desc = result.success
@@ -600,7 +600,7 @@ client.on('interactionCreate', async (interaction) => {
       const newExpiryDays = parseInt(interaction.fields.getTextInputValue('new_expiry_days')) || 0;
       const params = { type: 'edituser', user: username };
       const changes = [];
-      if (newPassword) { if (newPassword.length < 6) return interaction.editReply({ components: [buildV2Error('❌ Invalid Password', 'Password must be at least **6 characters**.', selectedApp)], flags: COMPONENTS_V2 }); params.pass = newPassword; changes.push(`Password updated`); }
+      if (newPassword) { if (newPassword.length < 1) return interaction.editReply({ components: [buildV2Error('❌ Invalid Password', 'Password must be at least **1 character**.', selectedApp)], flags: COMPONENTS_V2 }); params.pass = newPassword; changes.push(`Password updated`); }
       if (newSubscription) { params.sub = newSubscription; changes.push(`Subscription → \`${newSubscription}\``); }
       if (newExpiryDays > 0) { params.expiry = Math.floor(Date.now() / 1000) + (newExpiryDays * 86400); changes.push(`Expiry extended by \`${newExpiryDays} days\``); }
       if (!changes.length) return interaction.editReply({ components: [buildV2Warning('⚠️ No Changes', 'No changes specified. Fill in at least one field.', selectedApp)], flags: COMPONENTS_V2 });

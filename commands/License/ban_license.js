@@ -10,7 +10,7 @@ module.exports = {
     .addStringOption(opt => opt.setName('reason').setDescription('Reason for the ban').setRequired(false)),
 
   async execute(interaction, client) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {
