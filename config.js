@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const config = {
+  BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
   TOKEN: process.env.DISCORD_BOT_TOKEN,
   WEBHOOK_URL: process.env.WEBHOOK_URL,
   ALLOWED_ROLE_NAME: process.env.ALLOWED_ROLE_NAME || 'Admin',
