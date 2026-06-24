@@ -1,57 +1,45 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const config = require('../../config');
-const { buildV2Container } = require('../../utils/helpers');
+const persistence = require('../../utils/persistence');
+const { buildV2Success, buildV2Error, buildV2Panel, COMPONENTS_V2 } = require('../../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('selectapplication')
-    .setDescription('Select a MughalAuth application to work with'),
+    .setDescription('Select which MughalAuth application to manage'),
+
   async execute(interaction, client) {
-    if (Object.keys(config.APPLICATIONS).length === 0) {
-      const container = buildV2Container("❌ No Applications Configured", "No applications found in configuration!", 0xe74c3c);
-      return interaction.reply({ 
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-        ephemeral: true 
-      });
+    const apps = Object.keys(config.APPLICATIONS || {});
+
+    if (apps.length === 0) {
+      const c = buildV2Error('❌ No Applications Configured', 'No applications found in your configuration!');
+      return interaction.reply({ components: [c], flags: COMPONENTS_V2, ephemeral: true });
     }
 
-    const currentSelection = client.userSelectedApps[interaction.user.id] || "None";
-    
-    let description = 
-      `🎯 **Current Selection:** \`${currentSelection}\`\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-
-    for (const [appName, sellerKey] of Object.entries(config.APPLICATIONS)) {
-      const maskedKey = `${sellerKey.slice(0, 4)}****${sellerKey.slice(-4)}`;
-      description += `• **${appName}**\n  Seller Key: \`${maskedKey}\`\n`;
-    }
-    
-    description += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n*Select an application from the dropdown below.*`;
-
-    const container = buildV2Container("📱 Available Applications", description, 0x3498db);
-
-    // Build the selection dropdown menu
-    const options = Object.keys(config.APPLICATIONS).map((appName) => ({
-      label: appName,
-      description: `Select ${appName} for MughalAuth operations`,
-      value: appName,
-      emoji: "📱"
-    }));
+    const currentApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
 
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('select_app_dropdown')
-      .setPlaceholder('🎯 Select an application...')
-      .addOptions(options);
+      .setPlaceholder(currentApp ? `Current: ${currentApp}` : '— Choose an application —')
+      .addOptions(apps.map(appName => ({
+        label: appName,
+        value: appName,
+        description: `Switch to application: ${appName}`,
+        default: appName === currentApp
+      })));
 
-    container.addActionRowComponents(
-      new ActionRowBuilder().addComponents(selectMenu)
-    );
+    const desc =
+      `Choose the MughalAuth application you want to manage.\n\n` +
+      `🎯 **Currently active:** ${currentApp ? `\`${currentApp}\`` : '⚠️ *None selected*'}\n\n` +
+      `Your selection is **saved automatically** and will persist even after a bot restart.`;
 
-    await interaction.reply({ 
-      components: [container], 
-      flags: MessageFlags.IsComponentsV2, 
-      ephemeral: true 
+    const container = buildV2Panel('📱 Select Application', desc, currentApp);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
+
+    await interaction.reply({
+      components: [container],
+      flags: COMPONENTS_V2,
+      ephemeral: true
     });
   }
 };

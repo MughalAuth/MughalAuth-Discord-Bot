@@ -1,13 +1,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
-const { mughalauth_request, getCachedUsers } = require('../../utils/mughalauth_api');
+const { mughalauth_request, getCachedUsers, invalidateUserCache } = require('../../utils/mughalauth_api');
 const { buildV2Success, buildV2Error, buildV2Warning, COMPONENTS_V2 } = require('../../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('reset_hwid')
-    .setDescription('Reset HWID lock for a user')
-    .addStringOption(opt => opt.setName('username').setDescription('Username').setRequired(true).setAutocomplete(true)),
+    .setName('unban_user')
+    .setDescription('Unban a previously banned user')
+    .addStringOption(opt =>
+      opt.setName('username').setDescription('Username to unban').setRequired(true).setAutocomplete(true)),
 
   async autocomplete(interaction, client) {
     const focusedValue = interaction.options.getFocused();
@@ -18,7 +19,7 @@ module.exports = {
     const choices = users
       .filter(u => u.username && u.username.toLowerCase().startsWith(focusedValue.toLowerCase()))
       .slice(0, 25)
-      .map(u => ({ name: u.username, value: u.username }));
+      .map(u => ({ name: `${u.username}${u.banned && u.banned !== '0' ? ' 🚫' : ''}`, value: u.username }));
     await interaction.respond(choices);
   },
 
@@ -32,21 +33,22 @@ module.exports = {
 
     const sellerKey = config.APPLICATIONS[selectedApp];
     const username = interaction.options.getString('username').trim();
-    const result = await mughalauth_request({ type: 'resetuser', user: username }, sellerKey);
 
-    const desc = result.success
-      ? `HWID lock has been cleared for **${username}** in **${selectedApp}**.\n\nThe user can now log in from a new device.`
-      : `**Error:** ${result.message || 'Unknown error'}`;
+    const result = await mughalauth_request({ type: 'unbanuser', user: username }, sellerKey);
 
-    await interaction.editReply({
-      components: [result.success ? buildV2Success('🔄 HWID Reset', desc, selectedApp) : buildV2Error('❌ HWID Reset Failed', desc, selectedApp)],
-      flags: COMPONENTS_V2
-    });
+    const container = result.success
+      ? buildV2Success('🔓 User Unbanned', `**${username}** has been unbanned in **${selectedApp}**.\n\nThey can now log in again.`, selectedApp)
+      : buildV2Error('❌ Unban Failed', `**Error:** ${result.message || 'Unknown error'}`, selectedApp);
 
-    if (result.success && client.sendWebhook) {
-      await client.sendWebhook(buildV2Success('🔄 HWID Reset',
-        `• **By:** ${interaction.user.displayName} (${interaction.user.id})\n• **Target:** ${username}\n• **App:** ${selectedApp}`
-      ));
+    await interaction.editReply({ components: [container], flags: COMPONENTS_V2 });
+
+    if (result.success) {
+      invalidateUserCache(selectedApp);
+      if (client.sendWebhook) {
+        await client.sendWebhook(buildV2Success('🔓 User Unbanned',
+          `• **By:** ${interaction.user.displayName} (${interaction.user.id})\n• **Target:** ${username}\n• **App:** ${selectedApp}`
+        ));
+      }
     }
   }
 };

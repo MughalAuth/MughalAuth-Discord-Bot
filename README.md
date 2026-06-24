@@ -1,4 +1,4 @@
-# 📱 MughalAuth Discord Bot V1.0.0
+# 📱 MughalAuth Discord Bot V1.2.0
 
 A premium, professional, and modular **MughalAuth Seller Admin Control Bot** built in Node.js using `discord.js@v14`. This bot implements a fully compliant, user-friendly plain text interface with dividing line styling (`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`) and Message Components V2 layouts — **completely free of Embeds** for maximum performance and a distinct aesthetic.
 
@@ -7,10 +7,14 @@ A premium, professional, and modular **MughalAuth Seller Admin Control Bot** bui
 ## 🚀 Key Features
 
 * **Command Cooldowns (Rate Limit Protection)**: Prevents command spamming at the Discord client level with ephemeral V2 countdown alerts.
+* **Persistent App Selection**: Your selected application is saved to disk and survives bot restarts automatically.
+* **Autocomplete on Username Fields**: 10 commands show live username suggestions as you type, backed by a 2-minute in-memory cache.
+* **Confirmation Dialogs**: Destructive actions (ban, delete) require a ✅ Confirm / ❌ Cancel step with a 30-second timeout.
 * **Modular Command Loader**: Slash commands organized neatly in categorised subdirectories:
   * 🖥️ **General**: `/selectapplication`, `/app_stats`, `/adminpanel`, `/ping`
-  * 👤 **User Control**: `/create_user`, `/quick_create`, `/delete_user`, `/reset_hwid`, `/user_info`, `/ban_user`, `/pause_user`, `/unpause_user`, `/edit_user`
-  * 🔑 **License Keys**: `/create_license`, `/delete_license`, `/ban_license`
+  * 👤 **User Control**: `/create_user`, `/quick_create`, `/delete_user`, `/ban_user`, `/unban_user`, `/reset_hwid`, `/user_info`, `/pause_user`, `/unpause_user`, `/edit_user`, `/reset_username`, `/list_users`, `/extend_expiry`
+  * 🔑 **License Keys**: `/create_license`, `/delete_license`, `/ban_license`, `/unban_license`, `/list_licenses`
+* **19-Button Admin Panel**: 4 organized rows covering every admin action — license management, user management, account actions, and danger zone.
 * **Hard Limit Controls**: Enforces a generation limit of `10` license keys maximum per single request across slash commands and button modals.
 * **Audit Webhook Logs**: Dispatches real-time audit logs of administrative actions to your private Discord logging channel.
 
@@ -82,6 +86,18 @@ Ensure your seller API (`api/seller/index.php`) supports the following request `
 * `setusername`: Change username for a user.
 * `edituser`: Edit user details (password, email, subscription level, or expiry).
 * `appstats`: Return summary statistics of the application.
+
+---
+
+## 📋 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+| Version | Date | Highlights |
+|---------|------|------------|
+| **v1.2.0** | 2026-06-24 | 5 new commands, autocomplete, confirmations, persistence, 19-btn panel |
+| v1.1.0 | 2026-06-23 | Fixed Component V2 crashes, full V2 migration |
+| v1.0.0 | — | Initial release |
 
 ---
 

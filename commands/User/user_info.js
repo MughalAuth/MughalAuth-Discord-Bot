@@ -1,72 +1,83 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
-const { mughalauth_request } = require('../../utils/mughalauth_api');
-const { buildV2Container } = require('../../utils/helpers');
+const { mughalauth_request, getCachedUsers } = require('../../utils/mughalauth_api');
+const { buildV2Info, buildV2Error, buildV2Warning, COMPONENTS_V2 } = require('../../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('user_info')
-    .setDescription('Get detailed user information')
-    .addStringOption(option => 
-      option.setName('username').setDescription('Username to get info for').setRequired(true)),
+    .setDescription('Get detailed information about a user')
+    .addStringOption(opt => opt.setName('username').setDescription('Username to look up').setRequired(true).setAutocomplete(true)),
+
+  async autocomplete(interaction, client) {
+    const focusedValue = interaction.options.getFocused();
+    const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
+    if (!selectedApp) return interaction.respond([]);
+    const sellerKey = config.APPLICATIONS[selectedApp];
+    const users = await getCachedUsers(sellerKey, selectedApp);
+    const choices = users
+      .filter(u => u.username && u.username.toLowerCase().startsWith(focusedValue.toLowerCase()))
+      .slice(0, 25)
+      .map(u => ({ name: `${u.username}${u.banned && u.banned !== '0' ? ' 🚫' : ''}`, value: u.username }));
+    await interaction.respond(choices);
+  },
+
   async execute(interaction, client) {
     await interaction.deferReply({ ephemeral: true });
-    
+
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {
-      const container = buildV2Container("❌ No Application Selected", "Please select an application using `/selectapplication` first!", 0xe74c3c);
-      return interaction.editReply({ components: [container] });
+      return interaction.editReply({ components: [buildV2Warning('📱 No App Selected', 'Use `/selectapplication` first.')], flags: COMPONENTS_V2 });
     }
-    
+
     const sellerKey = config.APPLICATIONS[selectedApp];
-    const username = interaction.options.getString('username');
-    
-    const params = {
-      type: 'fetchallusers'
-    };
-    
-    const result = await mughalauth_request(params, sellerKey);
-    
-    let container;
-    if (result.success && result.users) {
-      const userObj = result.users.find(u => u.username.toLowerCase() === username.toLowerCase());
-      
-      if (userObj) {
-        const desc = 
-          `• **Application:** \`${selectedApp}\`\n` +
-          `• **Username:** \`${userObj.username}\`\n` +
-          `• **Email:** \`${userObj.email || "N/A"}\`\n` +
-          `• **Created Date:** \`${userObj.createdate ? new Date(parseInt(userObj.createdate) * 1000).toLocaleString() : "N/A"}\`\n` +
-          `• **Last Login:** \`${userObj.lastlogin ? new Date(parseInt(userObj.lastlogin) * 1000).toLocaleString() : "N/A"}\`\n` +
-          `• **Banned:** \`${userObj.banned ? `Yes (${userObj.banned})` : "No"}\`\n` +
-          `• **HWID:** \`\`\`${userObj.hwid || "Not set"}\`\`\``;
+    const username = interaction.options.getString('username').trim();
 
-        container = buildV2Container(`📊 MughalAuth User Info - ${userObj.username}`, desc, 0x3498db);
+    const result = await mughalauth_request({ type: 'fetchallusers' }, sellerKey);
 
-        // Webhook log
-        if (client.sendWebhook) {
-          const webhookDesc = 
-            `• **User:** ${interaction.user.displayName} (ID: ${interaction.user.id})\n` +
-            `• **Target Username:** ${userObj.username}\n` +
-            `• **Application:** ${selectedApp}`;
-          const webhookContainer = buildV2Container("📊 User Info Viewed", webhookDesc, 0x3498db);
-          await client.sendWebhook(webhookContainer);
-        }
-      } else {
-        container = buildV2Container(
-          "❌ User Not Found", 
-          `User **${username}** could not be found in application **${selectedApp}**`, 
-          0xe74c3c
-        );
-      }
-    } else {
-      let errorMsg = result.message || 'Unknown error';
-      container = buildV2Container("❌ User Info Failed", `**Error:** ${errorMsg}`, 0xe74c3c);
+    if (!result.success || !result.users) {
+      return interaction.editReply({ components: [buildV2Error('❌ Fetch Failed', `**Error:** ${result.message || 'Unknown error'}`, selectedApp)], flags: COMPONENTS_V2 });
     }
-    
-    await interaction.editReply({ 
-      components: [container], 
-      flags: MessageFlags.IsComponentsV2 
+
+    const user = result.users.find(u => u.username?.toLowerCase() === username.toLowerCase());
+
+    if (!user) {
+      return interaction.editReply({ components: [buildV2Error('❌ User Not Found', `**${username}** was not found in **${selectedApp}**.`, selectedApp)], flags: COMPONENTS_V2 });
+    }
+
+    const isBanned = user.banned && user.banned !== '0';
+    const expiryMs = parseInt(user.expiry) * 1000;
+    const now = Date.now();
+    const isExpired = expiryMs < now;
+    const expDate = user.expiry ? new Date(expiryMs).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+    }) : 'N/A';
+    const loginDate = user.lastlogin ? new Date(parseInt(user.lastlogin) * 1000).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+    }) : 'Never';
+    const createDate = user.createdate ? new Date(parseInt(user.createdate) * 1000).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', hour12: false
+    }) : 'N/A';
+
+    const statusEmoji = isBanned ? '🚫 Banned' : (isExpired ? '⏰ Expired' : '✅ Active');
+
+    const description =
+      `📱 **App:** \`${selectedApp}\`  |  👤 **Status:** ${statusEmoji}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `• **Username:** \`${user.username}\`\n` +
+      `• **Email:** \`${user.email || 'N/A'}\`\n` +
+      `• **Subscription:** \`${user.sub || 'N/A'}\`\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `• **Created:** \`${createDate}\`\n` +
+      `• **Last Login:** \`${loginDate}\`\n` +
+      `• **Expiry:** \`${expDate}\`${isExpired && !isBanned ? ' ⚠️' : ''}\n` +
+      (isBanned ? `• **Ban Reason:** \`${user.banned}\`\n` : '') +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `• **HWID:** \`\`\`${user.hwid || 'Not set'}\`\`\``;
+
+    await interaction.editReply({
+      components: [buildV2Info(`🔍 User Info — ${user.username}`, description, selectedApp)],
+      flags: COMPONENTS_V2
     });
   }
 };

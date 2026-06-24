@@ -1,51 +1,47 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
-const { mughalauth_request } = require('../../utils/mughalauth_api');
-const { buildV2Container } = require('../../utils/helpers');
+const { buildV2Warning, buildV2Confirm, generateToken, COMPONENTS_V2 } = require('../../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('delete_license')
-    .setDescription('Delete a MughalAuth license key')
-    .addStringOption(option => 
-      option.setName('license_key').setDescription('License key to permanently delete').setRequired(true)),
+    .setDescription('Permanently delete a license key')
+    .addStringOption(opt => opt.setName('license_key').setDescription('License key to delete').setRequired(true)),
+
   async execute(interaction, client) {
     await interaction.deferReply({ ephemeral: true });
-    
+
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {
-      const container = buildV2Container("❌ No Application Selected", "Please select an application using `/selectapplication` first!", 0xe74c3c);
-      return interaction.editReply({ components: [container] });
+      return interaction.editReply({ components: [buildV2Warning('📱 No App Selected', 'Use `/selectapplication` first.')], flags: COMPONENTS_V2 });
     }
-    
+
     const sellerKey = config.APPLICATIONS[selectedApp];
-    const licenseKey = interaction.options.getString('license_key');
-    
-    const params = {
-      type: 'delkey',
-      key: licenseKey
-    };
-    
-    const result = await mughalauth_request(params, sellerKey);
-    
-    const container = buildV2Container(
-      result.success ? "🗑️ MughalAuth License Deleted Successfully" : "❌ Delete Failed",
-      result.success ? `MughalAuth License key \`${licenseKey}\` has been deleted in **${selectedApp}**` : `**Error:** ${result.message || 'Unknown error'}`,
-      result.success ? 0x2ecc71 : 0xe74c3c
+    const licenseKey = interaction.options.getString('license_key').trim();
+
+    // Show confirmation dialog
+    const token = generateToken();
+    const confirmId = `mughal_confirm_${token}`;
+    const cancelId = `mughal_cancel_${token}`;
+
+    const c = buildV2Confirm(
+      '⚠️ Confirm Delete License',
+      `Permanently delete key \`${licenseKey}\` from **${selectedApp}**?\n\n> ⛔ This action **cannot be undone**. The key will be gone forever.`,
+      confirmId, cancelId
     );
-    
-    await interaction.editReply({ 
-      components: [container], 
-      flags: MessageFlags.IsComponentsV2 
+    await interaction.editReply({ components: [c], flags: COMPONENTS_V2 });
+
+    const timeoutHandle = setTimeout(async () => {
+      client.pendingConfirms?.delete(token);
+      try {
+        const { buildV2Warning: w } = require('../../utils/helpers');
+        await interaction.editReply({ components: [w('⏱ Confirmation Expired', 'Timed out after 30s. Run the command again.')], flags: COMPONENTS_V2 });
+      } catch (_) {}
+    }, 30_000);
+
+    (client.pendingConfirms = client.pendingConfirms || new Map()).set(token, {
+      action: 'delete_license', sellerKey, selectedApp, licenseKey,
+      _timeout: timeoutHandle, _userId: interaction.user.id, _userTag: interaction.user.displayName
     });
-    
-    if (result.success && client.sendWebhook) {
-      const webhookDesc = 
-        `• **User:** ${interaction.user.displayName} (ID: ${interaction.user.id})\n` +
-        `• **Deleted Key:** \`${licenseKey}\`\n` +
-        `• **Application:** ${selectedApp}`;
-      const webhookContainer = buildV2Container("🗑️ MughalAuth License Deleted", webhookDesc, 0x2ecc71);
-      await client.sendWebhook(webhookContainer);
-    }
   }
 };

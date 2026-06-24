@@ -1,56 +1,49 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
-const { mughalauth_request } = require('../../utils/mughalauth_api');
-const { buildV2Container } = require('../../utils/helpers');
+const { buildV2Warning, buildV2Confirm, generateToken, COMPONENTS_V2 } = require('../../utils/helpers');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ban_license')
-    .setDescription('Ban a MughalAuth license key')
-    .addStringOption(option => 
-      option.setName('license_key').setDescription('License key to ban').setRequired(true))
-    .addStringOption(option => 
-      option.setName('reason').setDescription('Reason for the ban').setRequired(false)),
+    .setDescription('Ban a license key from the active application')
+    .addStringOption(opt => opt.setName('license_key').setDescription('License key to ban').setRequired(true))
+    .addStringOption(opt => opt.setName('reason').setDescription('Reason for the ban').setRequired(false)),
+
   async execute(interaction, client) {
     await interaction.deferReply({ ephemeral: true });
-    
+
     const selectedApp = client.userSelectedApps[interaction.user.id] || config.DEFAULT_APP;
     if (!selectedApp) {
-      const container = buildV2Container("❌ No Application Selected", "Please select an application using `/selectapplication` first!", 0xe74c3c);
-      return interaction.editReply({ components: [container] });
+      return interaction.editReply({ components: [buildV2Warning('📱 No App Selected', 'Use `/selectapplication` first.')], flags: COMPONENTS_V2 });
     }
-    
+
     const sellerKey = config.APPLICATIONS[selectedApp];
-    const licenseKey = interaction.options.getString('license_key');
-    const reason = interaction.options.getString('reason') || "Banned via Admin Panel";
-    
-    const params = {
-      type: 'ban',
-      key: licenseKey,
-      reason
-    };
-    
-    const result = await mughalauth_request(params, sellerKey);
-    
-    const container = buildV2Container(
-      result.success ? "🔨 MughalAuth License Banned Successfully" : "❌ Ban Failed",
-      result.success ? `MughalAuth License key \`${licenseKey}\` has been banned in **${selectedApp}**\n\n• **Reason:** \`${reason}\`` : `**Error:** ${result.message || 'Unknown error'}`,
-      result.success ? 0xe74c3c : 0xe74c3c
+    const licenseKey = interaction.options.getString('license_key').trim();
+    const reason = interaction.options.getString('reason')?.trim() || 'Banned via Discord Bot';
+
+    // Show confirmation dialog
+    const token = generateToken();
+    const confirmId = `mughal_confirm_${token}`;
+    const cancelId = `mughal_cancel_${token}`;
+
+    const c = buildV2Confirm(
+      '⚠️ Confirm Ban License',
+      `Ban key \`${licenseKey}\` in **${selectedApp}**?\n\n• **Reason:** \`${reason}\`\n\n> Key can be unbanned later with \`/unban_license\`.`,
+      confirmId, cancelId
     );
-    
-    await interaction.editReply({ 
-      components: [container], 
-      flags: MessageFlags.IsComponentsV2 
+    await interaction.editReply({ components: [c], flags: COMPONENTS_V2 });
+
+    const timeoutHandle = setTimeout(async () => {
+      client.pendingConfirms?.delete(token);
+      try {
+        const { buildV2Warning: w } = require('../../utils/helpers');
+        await interaction.editReply({ components: [w('⏱ Confirmation Expired', 'Timed out after 30s. Run the command again.')], flags: COMPONENTS_V2 });
+      } catch (_) {}
+    }, 30_000);
+
+    (client.pendingConfirms = client.pendingConfirms || new Map()).set(token, {
+      action: 'ban_license', sellerKey, selectedApp, licenseKey, reason,
+      _timeout: timeoutHandle, _userId: interaction.user.id, _userTag: interaction.user.displayName
     });
-    
-    if (result.success && client.sendWebhook) {
-      const webhookDesc = 
-        `• **User:** ${interaction.user.displayName} (ID: ${interaction.user.id})\n` +
-        `• **Banned Key:** \`${licenseKey}\`\n` +
-        `• **Reason:** ${reason}\n` +
-        `• **Application:** ${selectedApp}`;
-      const webhookContainer = buildV2Container("🔨 MughalAuth License Banned", webhookDesc, 0xe74c3c);
-      await client.sendWebhook(webhookContainer);
-    }
   }
 };
